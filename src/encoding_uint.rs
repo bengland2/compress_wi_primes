@@ -63,7 +63,7 @@ pub fn append_uint32(v_in : u32, length_and_val : & mut DynBitString) {
     let leading_0s = if v_in == 0 {
         NonZeroU32::BITS
     } else {
-        std::num::NonZeroU32::new(v_in).unwrap().leading_zeros()
+        NonZeroU32::new(v_in).unwrap().leading_zeros()
     };
     let mut len_bitct = NonZeroU32::BITS - leading_0s;
     #[allow(clippy::implicit_saturating_sub)]
@@ -219,7 +219,7 @@ pub mod tests {
         for j in 0..2<<20 {
             let sm = encode_uint32(j as u32);
             let v : u32 = decode_uint32(&sm);
-            assert!(v == (j as u32));
+            assert_eq!(v, j as u32);
         }
     }
 
@@ -234,7 +234,7 @@ pub mod tests {
             append_uint32_len(l, &mut sm);
             let mut bs_cursor : usize = 0;
             let l2 = read_uint32_len(&sm, &mut bs_cursor);
-            assert!(l == l2);
+            assert_eq!(l, l2);
         }
     }
 }

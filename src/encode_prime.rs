@@ -119,7 +119,7 @@ pub mod tests {
     use crate::dyn_bit_string::DynBitString;
 
     #[allow(dead_code)]
-    fn encode_it(n : u32, prms : & Vec::<u32>) -> DynBitString {
+    fn encode_it(n : u32, prms : & Vec<u32>) -> DynBitString {
         use crate::primes;
 
         let f = primes::factor(n, prms).unwrap();
@@ -205,8 +205,7 @@ pub mod tests {
         for k in 1<<1..1<<15 {
             let bs = encode_it(k, &prms);
             let k_out = super::decode_factors(&bs, &prms);
-
-            assert!(prod(k_out) == k);
+            assert_eq!(prod(k_out), k);
         }
     }
 

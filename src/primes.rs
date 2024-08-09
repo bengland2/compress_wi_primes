@@ -42,7 +42,7 @@ pub struct PrimeComputeRange {
 #[derive(Debug)]
 pub struct PerThreadRanges {
     thread_index: u32,
-    start_time: std::time::SystemTime,
+    start_time: SystemTime,
     ranges: Vec<PrimeComputeRange>,
 }
 
@@ -321,7 +321,7 @@ pub fn parallel_calc_primes(nthreads: usize, highest_candidate: u32) -> Vec<u32>
         }
         per_thread_ranges.push(per_thread_range);
     }
-    assert!(candidate_count == highest_candidate - prime_base_range);
+    assert_eq!(candidate_count, highest_candidate - prime_base_range);
 
     // create channel for each thread to send its primes back to this thread
     // we will clone the transmit side of channel for each thread
@@ -377,7 +377,7 @@ pub fn parallel_calc_primes(nthreads: usize, highest_candidate: u32) -> Vec<u32>
             });
             children.push(thrd_spawn_result);
         }
-        assert!(children.len() == nthreads);
+        assert_eq!(children.len(), nthreads);
 
         // collect vectors of primes from all threads
 
@@ -422,15 +422,15 @@ fn test_factors_in_range(thread_id: String, lo: u32, hi: u32, prms: &[u32]) -> u
                 for p in f {
                     prod *= p;
                     match index_in_prime_list(p, prms) {
-                        Ok(ix) => { assert!(prms[ix as usize] == p) }
+                        Ok(ix) => { assert_eq!(prms[ix as usize], p) }
                         Err(e) => {
-                            assert!(e == PrimeIndexError::NotInList);
+                            assert_eq!(e, PrimeIndexError::NotInList);
                             println!("prime {} in factor array not found in prms", p);
                             return k;
                         }
                     }
                 }
-                assert!(prod == k);
+                assert_eq!(prod, k);
             }
             Err(e) => {
                 println!("ERROR factoring {} : {:?}", k, e);
@@ -465,7 +465,7 @@ pub fn parallel_factor_all(biggest_number: u32, nthreads: usize, prms: &[u32]) {
         for (k, next_child) in children.into_iter().enumerate() {
             let result: u32 = next_child.join().unwrap();
             println!("thread {} low {} hi {} result {}", k, child_range[k].lower, child_range[k].upper, result);
-            assert!(result == child_range[k].upper);
+            assert_eq!(result, child_range[k].upper);
         }
     });
 }
@@ -539,7 +539,7 @@ pub mod tests {
         let rslt = factor(too_big_to_factor, &prms);
         match rslt {
             Ok(_) => { assert!(false); }
-            Err(e) => { assert!(e == NotEnoughPrimesToFactorIt); }
+            Err(e) => { assert_eq!(e, NotEnoughPrimesToFactorIt); }
         };
 
         // n could be prime but larger than any in prms
@@ -548,7 +548,7 @@ pub mod tests {
         let rslt2 = factor(big_prime, &small_prime_list);
         match rslt2 {
             Ok(_) => { assert!(false); }
-            Err(e) => { assert!(e == NIsBigPrime); }
+            Err(e) => { assert_eq!(e, NIsBigPrime); }
         };
 
         // check it for primes that we know of already
@@ -566,13 +566,13 @@ pub mod tests {
                 prod *= next_prime;
 
                 let factors_of_prime = factor(next_prime, &prms).unwrap();
-                assert!(factors_of_prime.len() == 1);
-                assert!(factors_of_prime[0] == k);
+                assert_eq!(factors_of_prime.len(), 1);
+                assert_eq!(factors_of_prime[0], k);
 
                 assert!(last_val <= k);
                 last_val = k;
             }
-            assert!(prod == i);
+            assert_eq!(prod, i);
         }
     }
 
@@ -601,7 +601,7 @@ pub mod tests {
 
     pub fn test_gen_primes_up_to() {
         let prms_up_to_271 = gen_primes_up_to(271);
-        assert!(prms_up_to_271 == PRIMES_UP_TO_271);
+        assert_eq!(prms_up_to_271, PRIMES_UP_TO_271);
         let prms_up_to_10000 = gen_primes_up_to(10000);
         let mut last_k: u32 = 0;
         for k in &prms_up_to_10000 {
@@ -622,6 +622,6 @@ pub mod tests {
     pub fn test_read_primes() {
         test_write_primes();
         let primes_we_read = read_primes(271).unwrap();
-        assert!(primes_we_read == PRIMES_UP_TO_271.to_vec());
+        assert_eq!(primes_we_read, PRIMES_UP_TO_271.to_vec());
     }
 }

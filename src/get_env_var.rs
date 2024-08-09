@@ -39,7 +39,7 @@ pub fn get_env_var_u32(str_var_name : &str) -> Result<u32, EnvVarFailure> {
                 Ok(u32val) => {
                     println!("env.var. {} = {}", str_var_name, u32val);
                     Ok(u32val)
-                },
+                }
             }
         },
     }
@@ -49,7 +49,7 @@ pub fn get_env_var_u32_with_default(str_var_name : &str, default_value : u32) ->
     match get_env_var_u32(str_var_name) {
         Ok(u32val) => Ok(u32val),
         Err(e) => {
-            if e == EnvVarFailure::VarNotFound { Ok(default_value) }
+            if e == VarNotFound { Ok(default_value) }
             else { Err(e) }
         }
     }
@@ -78,7 +78,7 @@ pub fn get_env_var_bool_with_default(str_var_name : &str, default_value : bool) 
     match get_env_var_bool(str_var_name) {
         Ok(boolval) => Ok(boolval),
         Err(e) => {
-            if e == EnvVarFailure::VarNotFound { Ok(default_value) }
+            if e == VarNotFound { Ok(default_value) }
             else { Err(e) }
         }
     }
@@ -87,8 +87,8 @@ pub fn get_env_var_bool_with_default(str_var_name : &str, default_value : bool) 
 
 pub fn env_var_usage( e : EnvVarFailure, var : &String ) {
     let s = match e {
-        EnvVarFailure::VarNotFound =>  "environment variable not found" ,
-        EnvVarFailure::CouldNotParseVar => "could not parse environment variable"
+        VarNotFound =>  "environment variable not found" ,
+        CouldNotParseVar => "could not parse environment variable"
     };
     println!("ERROR: {} : {}", var, s);
     std::process::exit(1);
