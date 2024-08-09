@@ -1,5 +1,5 @@
 [package]
-name = "prm_compress"
+name = "compress_wi_primes"
 version = "0.1.0"
 edition = "2021"
 
