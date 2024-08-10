@@ -1,8 +1,9 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Run" type="CargoCommandRunConfiguration" factoryName="Cargo Command" nameIsGenerated="true">
-    <option name="command" value="run" />
+  <configuration default="false" name="Test primes.rs" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+    <option name="command" value="test primes" />
+    <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <envs>
-      <env name="TMPDIR" value="$PROJECT_DIR$/../../../england/tmp/prime_graphs" />
+      <env name="TMPDIR" value="$USER_HOME$/tmp/prime_graphs" />
     </envs>
     <option name="emulateTerminal" value="true" />
     <option name="channel" value="DEFAULT" />
