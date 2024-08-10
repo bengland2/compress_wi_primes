@@ -524,7 +524,8 @@ pub mod tests {
         let test_prms: Vec<u32> = PRIMES_UP_TO_271.to_vec();
         let f = [0, 1, 2].to_vec();
         let fct = indices_to_prime_factors(&f, &test_prms);
-        assert!(fct.len() == 3 && fct[0] == 2 && fct[1] == 3 && fct[2] == 5);
+        assert_eq!(fct.len(), 3);
+        assert!(fct[0] == 2 && fct[1] == 3 && fct[2] == 5);
     }
 
     #[test]
@@ -555,7 +556,7 @@ pub mod tests {
 
         for i in 2..272 {
             let f = factor(i, &prms).unwrap();
-            println!("{} factors {:?}", i, f);
+            //println!("{} factors {:?}", i, f);
             let mut prod: u32 = 1;
             let mut last_val: u32 = 0;
             // test that elements are non-decreasing and prime
@@ -589,7 +590,7 @@ pub mod tests {
         let mut new_prms = gen_primes_in_range(&old_prms, 271, lower_bound, upper_bound).unwrap();
         let mut old_and_new_prms: Vec<u32> = Vec::new();
         old_and_new_prms.append(&mut old_prms);
-        println!("primes in range [{}, {}] = {:?}", lower_bound, upper_bound, new_prms);
+        //println!("primes in range [{}, {}] = {:?}", lower_bound, upper_bound, new_prms);
         old_and_new_prms.append(&mut new_prms);
         let nonmut_old_and_new = &old_and_new_prms;
 
@@ -609,18 +610,12 @@ pub mod tests {
             last_k = *k;
             assert!(is_prime(*k, &prms_up_to_10000));
         }
-        println!("last prime before 10000 is {}", last_k);
-    }
-
-
-    #[test]
-    pub fn test_write_primes() {
-        write_primes(&PRIMES_UP_TO_271.to_vec(), 271).unwrap();
+        assert_eq!(last_k, 9971);
     }
 
     #[test]
     pub fn test_read_primes() {
-        test_write_primes();
+        write_primes(&PRIMES_UP_TO_271.to_vec(), 271).unwrap();
         let primes_we_read = read_primes(271).unwrap();
         assert_eq!(primes_we_read, PRIMES_UP_TO_271.to_vec());
     }
