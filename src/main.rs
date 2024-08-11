@@ -14,6 +14,8 @@ pub mod encoding_uint;
 pub mod dyn_bit_string;
 pub mod get_env_var;
 pub mod plot;
+mod encoding_small_int;
+mod encoding_uint_trait;
 
 fn hist_to_expected_value( hist : &[u32] ) -> f64 {
     let mut expected_value = 0.0;
