@@ -12,15 +12,17 @@ pub fn vec_u32_to_f64( v_in : &Vec<u32> ) -> Vec<f64> {
     v_out
 }
 
-pub fn plot_histogram_u32(filename : &str, plot_name : &str, x_label : &str, y_label : &str, hist_vec : &Vec<u32> ) -> Result<(), Box<dyn std::error::Error>> {
+pub fn plot_histogram_u32(filename : &str, plot_name : &str, x_label : &str, y_label : &str, hist_vec : &Vec<u32> )
+                            -> Result<String, Box<dyn std::error::Error>> {
     let hist_as_f64 = vec_u32_to_f64(hist_vec);
     plot_histogram_f64(filename, plot_name, x_label, y_label, &hist_as_f64)
 }
 
-pub fn plot_histogram_f64( filename : &str, plot_name : &str, x_label : &str, y_label : &str, hist_vec : &[f64] ) -> Result<(), Box<dyn std::error::Error>> {
+pub fn plot_histogram_f64( filename : &str, plot_name : &str, x_label : &str, y_label : &str, hist_vec : &[f64] )
+                        -> Result<String, Box<dyn std::error::Error>> {
     let binding = std::path::MAIN_SEPARATOR.to_string();
     let sep = binding.as_str();
-    let pathname = env::var("TMPDIR").unwrap() + sep + filename;
+    let pathname = env::var("PLOTDIR").unwrap() + sep + filename + ".png";
     println!("creating file {}", pathname);
     let root = BitMapBackend::new(pathname.as_str(), (640, 480)).into_drawing_area();
     root.fill(&WHITE)?;
@@ -63,17 +65,49 @@ pub fn plot_histogram_f64( filename : &str, plot_name : &str, x_label : &str, y_
         series.push((k as f32, *h));
     }
     chart.draw_series(LineSeries::new( series, &RED ))?;
-/*
-    // Similarly, we can draw point series
-    chart.draw_series(PointSeries::of_element(series.iter(), series.len(),
-        &RED,
-        &|c, s, st| {
-            return EmptyElement::at(c)    // We want to construct a composed element on-the-fly
-                + Circle::new((0,0),s,st.filled()) // At this point, the new pixel coordinate is established
-                + Text::new(format!("{:?}", c), (10, 0), ("sans-serif", 10).into_font());
-        },
-    ))?;
-*/
     root.present()?;
-    Ok(())
+    Ok(pathname.clone())
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    #[test]
+    pub fn test_plot_histogram_f64() {
+        let fake_histo: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0];
+        let fake_fn = "foo_plot_f64";
+        let result = plot_histogram_f64(
+            fake_fn.as_ref(),
+            fake_fn.as_ref(),
+            "my X-label".as_ref(),
+            "my Y-label".as_ref(),
+            &fake_histo);
+        match result {
+            Ok( filenm ) => {
+                assert ! ( filenm.contains(fake_fn));
+                let _f = std::fs::File::open(filenm).unwrap();
+            }
+            Err(e) => { panic ! ("plot f64 failed: {:?}", e); }
+        }
+    }
+
+    #[test]
+    pub fn test_plot_histogram_u32() {
+        let fake_histo: Vec<u32> = vec![1, 2, 3, 4];
+        let fake_fn = "foo_plot_u32";
+        let result = plot_histogram_u32(
+            fake_fn.as_ref(),
+            fake_fn.as_ref(),
+            "my X-label".as_ref(),
+            "my Y-label".as_ref(),
+            &fake_histo);
+        match result {
+            Ok( filenm ) => {
+                assert ! ( filenm.contains(fake_fn));
+                let _f = std::fs::File::open(filenm).unwrap();
+            }
+            Err(e) => { panic ! ("plot f32 failed: {:?}", e); }
+        }
+    }
 }
