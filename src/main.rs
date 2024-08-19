@@ -37,19 +37,22 @@ fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     let nthreads : usize = get_env_var_u32_with_default(
         "NTHREADS",
         num_cores as u32).unwrap() as usize;
+    println!("number of cores to use: {}", nthreads);
 
-    let biggest_prime : u32 = get_env_var_u32_with_default(
+    let largest_uint32: u32 = get_env_var_u32_with_default(
         "LARGEST_UINT",
         u32::MAX).unwrap();
+    println!("largest prime number candidate: {}", largest_uint32);
 
     let samples = get_env_var_u32_with_default(
         "SAMPLES",
         10000).unwrap();
+    println!("samples : {}", samples);
 
     let time_before_primes = SystemTime::now();
 
     let mut prms : Vec<u32> = Vec::new();
-    let read_result = primes::read_primes(biggest_prime);
+    let read_result = primes::read_primes(largest_uint32);
     if let Ok(read_prms) = read_result {
         let time_after_read = SystemTime::now();
         let duration_read_primes = time_after_read.duration_since(time_before_primes)?;
@@ -57,13 +60,13 @@ fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
         prms = read_prms;
     }
     if prms.is_empty() {  // if primes were not read from file
-        prms = primes::parallel_calc_primes(nthreads, biggest_prime);
+        prms = primes::parallel_calc_primes(nthreads, largest_uint32);
 
         let time_after_threads = SystemTime::now();
         let duration_after_threads = time_after_threads.duration_since(time_before_primes)?;
         println!("time to compute primes: {:?}", duration_after_threads);
 
-        if let Err(e) = primes::write_primes(&prms, biggest_prime) {
+        if let Err(e) = primes::write_primes(&prms, largest_uint32) {
             panic!("failed to write {} primes : {:?}", prms.len(), e);
         }
 
@@ -89,9 +92,9 @@ fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     }
 
     if get_env_var_u32("TEST_FACTORING_ALL").is_ok() {
-        println!("factoring all numbers up to {}", biggest_prime);
+        println!("factoring all numbers up to {}", largest_uint32);
         let time_before_factoring = SystemTime::now();
-        primes::parallel_factor_all(biggest_prime, nthreads, &prms);
+        primes::parallel_factor_all(largest_uint32, nthreads, &prms);
         let time_after_factoring = SystemTime::now();
         let duration_factoring = time_after_factoring.duration_since(time_before_factoring)?;
         println!("factored all numbers in {:?}", duration_factoring);
@@ -132,7 +135,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
 
     for _j in 0..samples {
         let mut next_rand = rng.next_u32();
-        if biggest_prime != u32::MAX { next_rand %= biggest_prime + 1 }
+        if largest_uint32 != u32::MAX { next_rand %= largest_uint32 + 1 }
         if next_rand < 2 { next_rand = 2; }
         let ixs  = primes::factor(next_rand, &prms).unwrap();
         histogrm_fct_len[ixs.len()] += 1;
