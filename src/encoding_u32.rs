@@ -53,7 +53,8 @@ impl EncodingUint for U32Encoding {
         }
         assert_eq!(len_bitct, 0);
 
-        // FIXME:: can we optimize away this loop?
+        // we could replace this bit-by-bit loop
+        // with something more efficient later
 
         let mut v = v_in;
         if v == 0 {
@@ -100,6 +101,8 @@ impl EncodingUint for U32Encoding {
         assert!(vlen < 33);
         // we now have the length of the integer in vlen
         // now decode integer of vlen bits
+        // someday we can stop doing this bit-by-bit
+
         let mut v = 0;
         bitct_mask = 1;
         for _j in 0..vlen {
