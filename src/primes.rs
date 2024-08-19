@@ -191,7 +191,7 @@ pub fn gen_primes_up_to(n: u32) -> Vec<u32> {
 
 fn prime_data_pathname(last_prime: u32) -> String {
     use std::env;
-    let tmpdir = env::var("TMPDIR").unwrap();
+    let tmpdir = env::var("PRIME_DIR").unwrap();
     tmpdir + "/primes_up_to_" + last_prime.to_string().as_str()
 }
 
