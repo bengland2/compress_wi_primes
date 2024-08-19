@@ -1,9 +1,10 @@
 
 
 // encode integers using variable-length encoding
-use crate::encoding_uint::*;
 use crate::dyn_bit_string::DynBitString;
-use bitstring::BitString;
+use crate::encoding_small_int::SmallIntEncoding;
+use crate::encoding_u32::U32Encoding;
+use crate::encoding_uint_trait::EncodingUint;
 
 #[derive(Debug)]
 pub struct PrmPwr {
@@ -45,9 +46,14 @@ pub fn factors_to_int_as_prms( prm_factors : &[u32] ) -> IntAsPrms {
 
 pub fn encode_factors( v : &[u32] ) -> DynBitString {
     assert!(!v.is_empty());
-    let iap = factors_to_int_as_prms( v );
-    let mut encbuf  = DynBitString::null();
-    let mut prev_index : u32 = 0;
+    let iap = factors_to_int_as_prms(v);
+
+
+    // append SmallIntEncodingcontaining
+    // first encode the length of IntAsPrms
+    // followed by each exponent
+
+    let mut small_int_encoding = SmallIntEncoding::new();
 
     // the number of elements in the IntAsPrms structure
     // is encoded by subtracting 1 first, since there is no
@@ -55,53 +61,57 @@ pub fn encode_factors( v : &[u32] ) -> DynBitString {
 
     let l = iap.prm_powers.len();
     assert!(l > 0);
-    append_uint32_len(l as u32 - 1, & mut encbuf);
+    small_int_encoding.append_uint32(l as u32 - 1);
 
-    for nxt_ppwr in iap.prm_powers {
-        if nxt_ppwr.exp == 1 {
-            encbuf.append(false);
-        } else {
-            encbuf.append(true);
-            // there is no reason to include a prime
-            // with an exponent of zero, which would just be
-            // a factor 1 anyway
-            // if the exponent was 1 then we would not be here.
-            // so we can subtract 2 from the exponent to improve
-            // compression
-            assert!(nxt_ppwr.exp > 1);
-            append_uint32((nxt_ppwr.exp-2) as u32, & mut encbuf);
-        }
+    for nxt_ppwr in iap.prm_powers.as_slice() {
+        // there is no reason to include a prime
+        // with an exponent of zero, which would just be
+        // a factor 1 anyway
+        // if the exponent was 1 then we would not be here.
+        // so we can subtract 2 from the exponent to improve
+        // compression
+        assert!(nxt_ppwr.exp > 1);
+        small_int_encoding.append_uint32((nxt_ppwr.exp - 2) as u32);
+    }
 
+    let encoding_so_far = small_int_encoding.get_bitstr_encoding();
+    let mut index_encoding = U32Encoding::from_bitstr_encoding(encoding_so_far);
+    let mut prev_index: u32 = 0;
+    for nxt_ppwr in iap.prm_powers.as_slice() {
         // encode the INDEX of the prime, because the
         // index of the prime will be significantly smaller than
         // the prime itself for large primes so this
         // may improve compression.  Specifically density
         // of primes is approximately 1/ln(N)
 
-        append_uint32(nxt_ppwr.prm_idx - prev_index, & mut encbuf);
+        // encode the difference between this index and the last index
+        // to further shrink the size of the encoding.
+
+        index_encoding.append_uint32(nxt_ppwr.prm_idx - prev_index);
         prev_index = nxt_ppwr.prm_idx;
     }
-    encbuf
+    index_encoding.get_bitstr_encoding()
 }
 
 pub fn decode_factors( bs : &DynBitString, prms: &[u32] ) -> Vec<u32> {
     let mut ppwrs : Vec<PrmPwr> = vec![];
+    let mut exponents : Vec<u32> = vec![];
     let mut cursor : usize = 0;
+    let small_int_encoding = SmallIntEncoding::from_bitstr_encoding(bs.clone());
     let mut prev_index : u32 = 0;
-    let mut l = read_uint32_len(bs, &mut cursor) + 1;
-    while l > 0 {
-        l -= 1;
-        let mut next_exponent = 1;  // if no exponent present, it is 1
-        // read the first bit to see if an exponent is present
-        let has_exponent = bs.get(cursor);
-        cursor += 1;
-        if has_exponent {
-            next_exponent = read_uint32( bs, &mut cursor ) + 2;
-            assert!(next_exponent <= u8::MAX as u32);
-        }
-        let next_prm_index = read_uint32( bs, &mut cursor) + prev_index;
+    let l = small_int_encoding.read_uint32(&mut cursor) + 1;
+    ppwrs.reserve_exact(l as usize);
+    exponents.reserve_exact(l as usize);
+    for _k in 0..l {
+        let next_exponent = small_int_encoding.read_uint32(&mut cursor) + 2;
+        exponents.push(next_exponent);
+    }
+    let encoding_so_far = small_int_encoding.get_bitstr_encoding();
+    let index_encoding = U32Encoding::from_bitstr_encoding(encoding_so_far);
+    for k  in 0..l as usize {
+        let next_prm_index = index_encoding.read_uint32(&mut cursor) + prev_index;
         prev_index = next_prm_index;
-        let nxt_prime_power = PrmPwr { exp: next_exponent as u8, prm_idx: prms[next_prm_index as usize] };
+        let nxt_prime_power = PrmPwr { exp: exponents[k] as u8, prm_idx: prms[next_prm_index as usize] };
         ppwrs.push(nxt_prime_power);
     }
     let mut factors : Vec<u32> = vec![];
