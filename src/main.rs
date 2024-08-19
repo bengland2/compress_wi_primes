@@ -10,7 +10,7 @@ use std::time::SystemTime;
 
 pub mod encode_prime;
 pub mod primes;
-pub mod encoding_uint;
+pub mod encoding_u32;
 pub mod dyn_bit_string;
 pub mod get_env_var;
 pub mod plot;
