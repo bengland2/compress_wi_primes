@@ -1,6 +1,10 @@
 
 
-// encode integers using variable-length encoding
+// encode factorization array into bitstring using variable-length encoding
+// or decode bitstring into factorization array
+// factorization array contains INDICES of primes not prime numbers
+// see primes::indices_to_prime_factors to convert indices to prime numbers
+
 use crate::dyn_bit_string::DynBitString;
 use crate::encoding_small_int::SmallIntEncoding;
 use crate::encoding_u32::U32Encoding;
@@ -40,16 +44,18 @@ pub fn factors_to_int_as_prms( prm_factors : &[u32] ) -> IntAsPrms {
     iap
 }
 
-// encode a IntAsPrms structure as a bitstring using
-// variable-length unsigned integer encoding to compress
-// the input array must be of non-zero length
+// encode a IntAsPrms structure as a bit string using
+// variable-length unsigned integer encoding
+// v - prime number factorization,
+//      each number must be prime number index
+//      sequence must be of non-zero length and non-decreasing
 
 pub fn encode_factors( v : &[u32] ) -> DynBitString {
     assert!(!v.is_empty());
     let iap = factors_to_int_as_prms(v);
 
 
-    // append SmallIntEncodingcontaining
+    // append SmallIntEncoding containing
     // first encode the length of IntAsPrms
     // followed by each exponent
 
@@ -70,19 +76,18 @@ pub fn encode_factors( v : &[u32] ) -> DynBitString {
         // if the exponent was 1 then we would not be here.
         // so we can subtract 2 from the exponent to improve
         // compression
-        assert!(nxt_ppwr.exp > 1);
-        small_int_encoding.append_uint32((nxt_ppwr.exp - 2) as u32);
+        assert!(nxt_ppwr.exp > 0);
+        small_int_encoding.append_uint32((nxt_ppwr.exp - 1) as u32);
     }
 
     let encoding_so_far = small_int_encoding.get_bitstr_encoding();
     let mut index_encoding = U32Encoding::from_bitstr_encoding(encoding_so_far);
     let mut prev_index: u32 = 0;
     for nxt_ppwr in iap.prm_powers.as_slice() {
-        // encode the INDEX of the prime, because the
+        // we encode the INDEX of the prime, because the
         // index of the prime will be significantly smaller than
         // the prime itself for large primes so this
-        // may improve compression.  Specifically density
-        // of primes is approximately 1/ln(N)
+        // may improve compression.
 
         // encode the difference between this index and the last index
         // to further shrink the size of the encoding.
@@ -93,7 +98,10 @@ pub fn encode_factors( v : &[u32] ) -> DynBitString {
     index_encoding.get_bitstr_encoding()
 }
 
-pub fn decode_factors( bs : &DynBitString, prms: &[u32] ) -> Vec<u32> {
+// decode the bitstring into a factorization array
+// output array is non-decreasing and contains INDICES of prime numbers
+
+pub fn decode_factors( bs : &DynBitString ) -> Vec<u32> {
     let mut ppwrs : Vec<PrmPwr> = vec![];
     let mut exponents : Vec<u32> = vec![];
     let mut cursor : usize = 0;
@@ -103,7 +111,7 @@ pub fn decode_factors( bs : &DynBitString, prms: &[u32] ) -> Vec<u32> {
     ppwrs.reserve_exact(l as usize);
     exponents.reserve_exact(l as usize);
     for _k in 0..l {
-        let next_exponent = small_int_encoding.read_uint32(&mut cursor) + 2;
+        let next_exponent = small_int_encoding.read_uint32(&mut cursor) + 1;
         exponents.push(next_exponent);
     }
     let encoding_so_far = small_int_encoding.get_bitstr_encoding();
@@ -111,7 +119,7 @@ pub fn decode_factors( bs : &DynBitString, prms: &[u32] ) -> Vec<u32> {
     for k  in 0..l as usize {
         let next_prm_index = index_encoding.read_uint32(&mut cursor) + prev_index;
         prev_index = next_prm_index;
-        let nxt_prime_power = PrmPwr { exp: exponents[k] as u8, prm_idx: prms[next_prm_index as usize] };
+        let nxt_prime_power = PrmPwr { exp: exponents[k] as u8, prm_idx: next_prm_index };
         ppwrs.push(nxt_prime_power);
     }
     let mut factors : Vec<u32> = vec![];
@@ -126,20 +134,21 @@ pub fn decode_factors( bs : &DynBitString, prms: &[u32] ) -> Vec<u32> {
 #[cfg(test)]
 pub mod tests {
 
-    use crate::dyn_bit_string::DynBitString;
+    use super::*;
+    use bitstring::BitString;
 
     #[allow(dead_code)]
     fn encode_it(n : u32, prms : & Vec<u32>) -> DynBitString {
         use crate::primes;
 
         let f = primes::factor(n, prms).unwrap();
-        super::encode_factors(&f)
+        encode_factors(&f)
     }
 
     #[allow(dead_code)]
-    fn encoded_int_as_str(bs : & DynBitString, prms : &[u32] ) -> String {
-        let ixs = super::decode_factors(bs, prms);
-        let iap = super::factors_to_int_as_prms(&ixs);
+    fn encoded_int_as_str(bs : & DynBitString) -> String {
+        let ixs = decode_factors(bs);
+        let iap = factors_to_int_as_prms(&ixs);
         let lenstr = iap.prm_powers.len().to_string();
         let mut bstr = lenstr.to_string();
         bstr += "[";
@@ -147,11 +156,7 @@ pub mod tests {
             bstr += "(";
             bstr += prmpwr.prm_idx.to_string().as_str();
             bstr += "_";
-            if prmpwr.exp == 1 {
-                bstr += "N"
-            } else {
-                bstr += (prmpwr.exp - 2).to_string().as_str();
-            }
+            bstr += prmpwr.exp.to_string().as_str();
             bstr += ")";
         }
         bstr += "]";
@@ -169,8 +174,6 @@ pub mod tests {
 
     #[test]
     pub fn test_factors_to_int_as_prms()  {
-        use super::factors_to_int_as_prms;
-
         let f : Vec<u32>  = [2u32, 2u32, 3u32, 5u32].to_vec();
         let iap = factors_to_int_as_prms(&f);
 
@@ -192,20 +195,20 @@ pub mod tests {
     #[test]
     pub fn test_encode_factors() {
         use crate::primes;
-        use bitstring::BitString;
 
-        let prms : Vec<u32> = primes::gen_primes_up_to(1 << 16);
-        let mut two_to_the_k : u32 = 2;
+        let prms: Vec<u32> = primes::gen_primes_up_to(1 << 16);
+        let mut two_to_the_k: u32 = 2;
         for _k in 1..15 {
             two_to_the_k *= 2;
             for j in 0..3 {
-                let next_to_factor = two_to_the_k+j-1;
-                let bs = encode_it(next_to_factor, & prms);
-                println!("bitstring for {} len {} bitstring {} binary {:?}", next_to_factor, bs.len(), encoded_int_as_str(&bs, &prms), bs);
+                let next_to_factor = two_to_the_k + j - 1;
+                let bs = encode_it(next_to_factor, &prms);
+                // FIXME: get rid of println statements
+                println!("bitstring for {} len {} bitstring {} binary {:?}",
+                         next_to_factor, bs.len(), encoded_int_as_str(&bs), bs);
             }
         }
     }
-
     #[test]
     pub fn test_decode_factors() {
         use crate::primes::gen_primes_up_to;
@@ -214,8 +217,12 @@ pub mod tests {
 
         for k in 1<<1..1<<15 {
             let bs = encode_it(k, &prms);
-            let k_out = super::decode_factors(&bs, &prms);
-            assert_eq!(prod(k_out), k);
+            let idx_out = decode_factors(&bs);
+            let mut f_out: Vec<u32> = vec![];
+            for idx in idx_out {
+                f_out.push(prms[idx as usize]);
+            }
+            assert_eq!(prod(f_out), k);
         }
     }
 
@@ -225,6 +232,6 @@ pub mod tests {
 
         let prms : Vec<u32> = primes::gen_primes_up_to(1 << 8);
         let bs = encode_it(30, &prms);
-        println!("encoded_int_to_string {}", encoded_int_as_str(&bs, &prms));
+        println!("encoded_int_to_string {}", encoded_int_as_str(&bs));
     }
 }
