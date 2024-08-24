@@ -22,7 +22,7 @@ pub fn plot_histogram_f64( filename : &str, plot_name : &str, x_label : &str, y_
                         -> Result<String, Box<dyn std::error::Error>> {
     let binding = std::path::MAIN_SEPARATOR.to_string();
     let sep = binding.as_str();
-    let pathname = env::var("PLOTDIR").unwrap() + sep + filename + ".png";
+    let pathname = env::var("PLOT_DIR").unwrap() + sep + filename;
     println!("creating file {}", pathname);
     let root = BitMapBackend::new(pathname.as_str(), (640, 480)).into_drawing_area();
     root.fill(&WHITE)?;
