@@ -10,6 +10,12 @@ pub struct DynBitString {
 
 //pub is_big_endian : bool = 0x12345678u32.to_be_bytes() == [ 0x12, 0x34, 0x56, 0x78 ];
 
+#[derive(PartialEq)]
+#[derive(Debug)]
+pub enum DBSGetBitErr {
+    CountPastEnd,
+    StartingAtTooBig
+}
 
 pub const BITS_PER_BYTE : usize = 8;
 
@@ -149,8 +155,22 @@ pub fn append_bits(dest : &mut DynBitString, bits: & DynBitString) {
     }
 }
 
+pub fn get_bits(bs : &DynBitString, starting_at : u32, count : u32) -> Result<DynBitString, DBSGetBitErr> {
+    if starting_at >= bs.len() as u32 {
+        return Err(DBSGetBitErr::StartingAtTooBig);
+    } else if starting_at + count > bs.len() as u32 {
+        return Err(DBSGetBitErr::CountPastEnd);
+    }
+    let mut substr = DynBitString::null();
+    for k in 0..count {
+        substr.append(bs.get((starting_at + k) as usize));
+    }
+    Ok(substr)
+}
+
 #[cfg(test)]
 pub mod tests {
+    use super::*;
 
     #[test]
     pub fn test_null() {
@@ -190,7 +210,6 @@ pub mod tests {
 
     #[test]
     pub fn test_setget() {
-        use super::DynBitString;
         use bitstring::BitString;
 
         let mut bs = DynBitString::null();
@@ -207,13 +226,12 @@ pub mod tests {
 
     #[test]
     pub fn test_parse() {
-        use super::DynBitString;
         use bitstring::BitString;
         use std::str::FromStr;
 
         let bs_result1 = DynBitString::from_str("");
         match bs_result1 {
-            Err(s) => { println!("got expected parse error for empty string: {}", s); }
+            Err(_) => { },
             Ok(_) => { assert!(false); }
         }
         let bs2 = DynBitString::from_str("b").unwrap();
@@ -226,7 +244,6 @@ pub mod tests {
 
     #[test]
     pub fn test_flip() {
-        use super::DynBitString;
         use bitstring::BitString;
 
         let mut bs = DynBitString::null();
@@ -239,7 +256,6 @@ pub mod tests {
 
     #[test]
     pub fn test_clip() {
-        use super::DynBitString;
         use bitstring::BitString;
 
         let mut bs = DynBitString::null();
@@ -269,5 +285,21 @@ pub mod tests {
         for k in 2..15 {
             assert!(!bs.get(k));
         }
+    }
+
+    #[test]
+    pub fn test_get_bits() {
+        let mut bs = DynBitString::null();
+        bs.append(false); bs.append(true); bs.append(true);
+        match get_bits(&bs, 2, 2) {
+            Err(ecode) => { assert_eq!(ecode, DBSGetBitErr::CountPastEnd); },
+            Ok(_) => {}
+        }
+        match get_bits(&bs, 3, 2) {
+            Err(ecode) => { assert_eq!(ecode, DBSGetBitErr::StartingAtTooBig); },
+            Ok(_) => {}
+        }
+        let substr = get_bits(&bs, 1, 2).unwrap();
+        assert!(substr.get(0) && substr.get(1));
     }
 }
