@@ -1,5 +1,6 @@
 
 
+// encode an unsigned integer already in factorized form
 // encode factorization array into bitstring using variable-length encoding
 // or decode bitstring into factorization array
 // factorization array contains INDICES of primes not prime numbers
@@ -131,6 +132,59 @@ pub fn decode_factors( bs : &DynBitString ) -> Vec<u32> {
     factors
 }
 
+// format factorization encoding in a way that lets you see how
+// effective/ineffective the encoding is for the components
+// this implementation is closely tied to encode_factors()
+
+pub fn format_factor_encoding_as_string( v : &[u32] ) -> String {
+    let iap = factors_to_int_as_prms(v);
+    let mut out_str = "".to_string();
+
+    // append SmallIntEncoding containing
+    // first encode the length of IntAsPrms
+    // followed by each exponent
+
+
+    // the number of elements in the IntAsPrms structure
+    // is encoded by subtracting 1 first, since there is no
+    // reason to use a structure with zero elements
+
+    let l = iap.prm_powers.len();
+    assert!(l > 0);
+    let mut length_encoding = SmallIntEncoding::new();
+    length_encoding.append_uint32(l as u32 - 1);
+    let length_bs = length_encoding.get_bitstr_encoding();
+    out_str += length_bs.to_string().as_str();
+    out_str += " [ ";
+
+    for nxt_ppwr in iap.prm_powers.as_slice() {
+        // there is no reason to include a prime
+        // with an exponent of zero, which would just be
+        // a factor 1 anyway
+        // if the exponent was 1 then we would not be here.
+        // so we can subtract 2 from the exponent to improve
+        // compression
+        assert!(nxt_ppwr.exp > 0);
+        let mut small_int_encoding = SmallIntEncoding::new();
+        small_int_encoding.append_uint32((nxt_ppwr.exp - 1) as u32);
+        out_str += small_int_encoding.get_bitstr_encoding().to_string().as_str();
+        out_str += " ";
+    }
+    out_str += "] [ ";
+
+    let mut prev_index: u32 = 0;
+    for nxt_ppwr in iap.prm_powers.as_slice() {
+        let mut index_encoding = U32Encoding::new();
+        index_encoding.append_uint32(nxt_ppwr.prm_idx - prev_index);
+        prev_index = nxt_ppwr.prm_idx;
+        out_str += index_encoding.get_bitstr_encoding().to_string().as_str();
+        out_str += " ";
+    }
+    out_str += " ] ";
+
+    out_str
+}
+
 #[cfg(test)]
 pub mod tests {
 
@@ -203,9 +257,11 @@ pub mod tests {
             for j in 0..3 {
                 let next_to_factor = two_to_the_k + j - 1;
                 let bs = encode_it(next_to_factor, &prms);
+                let f = primes::factor(next_to_factor, &prms);
+                let encoded_str = format_factor_encoding_as_string(&f.unwrap().as_slice());
                 // FIXME: get rid of println statements
-                println!("bitstring for {} len {} bitstring {} binary {:?}",
-                         next_to_factor, bs.len(), encoded_int_as_str(&bs), bs);
+                println!("bitstring for {} len {} bitstring {} binary {:?} formatted {}",
+                         next_to_factor, bs.len(), encoded_int_as_str(&bs), bs, encoded_str);
             }
         }
     }
