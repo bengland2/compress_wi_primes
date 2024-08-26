@@ -115,6 +115,12 @@ impl PartialEq for DynBitString {
 // support "{:?}" when printing DynBitString
 impl fmt::Debug for DynBitString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
+impl fmt::Display for DynBitString {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut s : String = "".to_string();
         for k in 0..self.len() {
             if self.get(k) { s.push('1'); } else { s.push('0'); }
@@ -204,7 +210,7 @@ pub mod tests {
         let mut bs2 = DynBitString::null();
         bs2.append(false);
         bs2.append(true);
-        super::append_bits(&mut bs, &bs2);
+        append_bits(&mut bs, &bs2);
         assert!(bs.get(0) && !bs.get(1) && bs.get(2));
     }
 
@@ -224,6 +230,11 @@ pub mod tests {
         assert_eq!(bs.b[0], 3);
     }
 
+    #[test]
+    pub fn test_debug_fmt() {
+        let bs = DynBitString::from_str("b011").unwrap();
+        println!("debug format for empty string: {:?}", bs)
+    }
     #[test]
     pub fn test_parse() {
         use bitstring::BitString;
@@ -264,7 +275,7 @@ pub mod tests {
         }
         assert_eq!(bs.len(), 9);
         for k in 0..9 {
-            assert_eq!(bs.get(k), (k%2 == 1));
+            assert_eq!(bs.get(k), k%2 == 1);
         }
         // case where bitstring shrinks
         bs.clip(2);
