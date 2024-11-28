@@ -3,6 +3,18 @@ name = "compress_wi_primes"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "generate_primes"
+path = "src/bin/generate_primes.rs"
+
+[[bin]]
+name = "factor_random"
+path = "src/bin/factor_random.rs"
+
+[lib]
+name = "compress_wi_primes"
+
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

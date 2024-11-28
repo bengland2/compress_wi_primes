@@ -3,19 +3,21 @@
 
 use bitstring::BitString;
 use rand::RngCore;
-use crate::encode_prime::IntAsPrms;
-use crate::get_env_var::EnvVarFailure::VarNotFound;
-use crate::plot::{plot_histogram_u32, plot_histogram_f64};
+use compress_wi_primes::encode_prime::IntAsPrms;
+use compress_wi_primes::primes;
+use compress_wi_primes::encode_prime;
+use compress_wi_primes::get_env_var;
+use compress_wi_primes::plot::{plot_histogram_u32, plot_histogram_f64};
 use std::time::SystemTime;
 
-pub mod encode_prime;
-pub mod primes;
-pub mod encoding_u32;
-pub mod dyn_bit_string;
-pub mod get_env_var;
-pub mod plot;
-mod encoding_small_int;
-mod encoding_uint_trait;
+//pub mod encode_prime;
+//pub mod primes;
+//pub mod encoding_u32;
+//pub mod dyn_bit_string;
+//pub mod get_env_var;
+//pub mod plot;
+//mod encoding_small_int;
+//mod encoding_uint_trait;
 
 fn hist_to_expected_value( hist : &[u32] ) -> f64 {
     let mut expected_value = 0.0;
@@ -29,7 +31,7 @@ fn hist_to_expected_value( hist : &[u32] ) -> f64 {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
-    use crate::get_env_var::{get_env_var_u32, get_env_var_u32_with_default};
+    use compress_wi_primes::get_env_var::{get_env_var_u32, get_env_var_u32_with_default};
 
     // read in parameters from environment variables and syscalls
 
@@ -51,29 +53,19 @@ fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
 
     let time_before_primes = SystemTime::now();
 
-    let mut prms : Vec<u32> = Vec::new();
-    let read_result = primes::read_primes(largest_uint32);
-    if let Ok(read_prms) = read_result {
-        let time_after_read = SystemTime::now();
-        let duration_read_primes = time_after_read.duration_since(time_before_primes)?;
-        println!("time to read {} primes: {:?}", read_prms.len(), duration_read_primes);
-        prms = read_prms;
-    }
-    if prms.is_empty() {  // if primes were not read from file
-        prms = primes::parallel_calc_primes(nthreads, largest_uint32);
-
-        let time_after_threads = SystemTime::now();
-        let duration_after_threads = time_after_threads.duration_since(time_before_primes)?;
-        println!("time to compute primes: {:?}", duration_after_threads);
-
-        if let Err(e) = primes::write_primes(&prms, largest_uint32) {
-            panic!("failed to write {} primes : {:?}", prms.len(), e);
+    let prms : Vec<u32>;
+    let read_result = compress_wi_primes::primes::read_primes(largest_uint32);
+    match read_result {
+        Ok(read_prms) => {
+            prms = read_prms;
+        },
+        Err(_) => {
+            panic!("unable to read primes up to {}, generate them!", largest_uint32);
         }
-
-        let time_after_file = SystemTime::now();
-        let duration_file_write = time_after_file.duration_since(time_after_threads)?;
-        println!("time to write file: {:?}", duration_file_write);
-    }
+    };
+    let time_after_read = SystemTime::now();
+    let duration_read_primes = time_after_read.duration_since(time_before_primes)?;
+    println!("time to read {} primes: {:?}", prms.len(), duration_read_primes);
 
     // at this point, prms contains the primes we need to factor any u32
     // either we read it in from a file or we generated+wrote it to a file
@@ -104,7 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     match get_env_var::get_env_var_bool_with_default(
         pics_env_var_name.as_str(),
         false) {
-        Err(e) => { if e != VarNotFound { get_env_var::env_var_usage(e, &pics_env_var_name); }},
+        Err(e) => { if e != get_env_var::EnvVarFailure::VarNotFound { get_env_var::env_var_usage(e, &pics_env_var_name); }},
         Ok(calc_compression_stats) => {
             if calc_compression_stats {
                 let mut prime_index_hist: Vec<f64> = vec![];
@@ -149,17 +141,18 @@ fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
             histogrm_log2_prime_index[log2_index as usize] += 1;
         }
         let e = encode_prime::encode_factors(&ixs);
+        let e_str = encode_prime::format_factor_encoding_as_string(&ixs.as_slice());
         if (e.len() as u32) < u32::BITS {
-            println!("COMPRESSED {} prime powers {:?} encoding {:?} len {}", next_rand, prmpwrs, e, e.len());
+            //println!("COMPRESSED {} prime powers {:?} encoding {:?} len {}", next_rand, prmpwrs, e, e.len());
             compressions += 1;
         }
 
         let u32_szratio : f64 = e.len() as f64 / u32::BITS as f64;
         histogrm_vs_u32[(u32_szratio * interval_divisor) as usize] += 1;
 
-        /* let f = primes::indices_to_prime_factors(&ixs, &prms);
-        println!("int {} ind {:?} fct {:?} prmpwr {:?} buf {:?} buflen {} u32 ratio {}",
-                 next_rand, ixs, f, prmpwrs, e, e.len(), u32_szratio); */
+        let f = primes::indices_to_prime_factors(&ixs, &prms);
+        println!("int {} ratio {} ind {:?} fct {:?} prmpwr {:?} buf {:?} buflen {} encoding {}",
+                 next_rand, u32_szratio, ixs, f, prmpwrs, e, e.len(), e_str);
     }
 
     println!("compressions: {}", compressions);
